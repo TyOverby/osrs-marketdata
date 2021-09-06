@@ -38,11 +38,32 @@ fn handle_connection(mut stream: TcpStream) -> Result<(), Box<dyn std::error::Er
 }
 
 fn send_output(stream: &mut TcpStream, file: &mut File) -> Result<(), Box<dyn std::error::Error>> {
+    let mut highest_low_time = 0;
+    let mut highest_high_time = 0;
+    let mut prev_low = 0;
+    let mut prev_high= 0;
     loop {
         let low_time= file.read_u32::<LittleEndian>()?;
         let high_time = file.read_u32::<LittleEndian>()?;
-        let low = file.read_u32::<LittleEndian>()?;
-        let high = file.read_u32::<LittleEndian>()?;
+        let mut low = file.read_u32::<LittleEndian>()?;
+        let mut high = file.read_u32::<LittleEndian>()?;
+
+        // Ban time-traveling
+        if low_time < highest_low_time {
+            low = prev_low;
+        }
+        if high_time < highest_high_time {
+            high = prev_high;
+        }
+        if low_time < highest_low_time && high_time < highest_high_time {
+            continue;
+        }
+
+        highest_low_time = low_time;
+        highest_high_time = high_time;
+        prev_low = low;
+        prev_high = high;
+
         let time = low_time.max(high_time);
         writeln!(stream, "{}, {}, {}", time, low, high)?;
     }

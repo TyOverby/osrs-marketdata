@@ -41,8 +41,9 @@ struct Metadata {
 
 #[derive(Serialize, Deserialize, Debug)]
 struct SystemMetadata {
+    total_bytes: u64,
+    new_entries: u32,
     per_item: HashMap<u32, Metadata>,
-    total_bytes: u64
 }
 
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -55,6 +56,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     fs::create_dir_all("data")?;
     let mut metadata: HashMap<u32, Metadata> = Default::default();
     let mut total_bytes = 0u64;
+    let mut new_entries = 0;
 
     for (k, v) in body {
         let mut file = fs::OpenOptions::new().read(true).write(true).create(true).open(format!("data/{}.bin", k))?;
@@ -63,21 +65,26 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut number_of_entries = length / (ITEM_SIZE as u64);
         let mut should_write = true;
         if length > 0 {
-            file.seek(SeekFrom::End(-ITEM_SIZE))?;
-            let item = Item {
-                low_time: file.read_u32::<LittleEndian>()?,
-                high_time: file.read_u32::<LittleEndian>()?,
-                low: file.read_u32::<LittleEndian>()?,
-                high: file.read_u32::<LittleEndian>()?,
-            };
+            let backwards_count = 10.min(length / ITEM_SIZE as u64) as i64;
+            file.seek(SeekFrom::End(-ITEM_SIZE * backwards_count))?;
 
-            if item == v { 
-                should_write = false;
+            for _ in 0 .. backwards_count {
+                let item = Item {
+                    low_time: file.read_u32::<LittleEndian>()?,
+                    high_time: file.read_u32::<LittleEndian>()?,
+                    low: file.read_u32::<LittleEndian>()?,
+                    high: file.read_u32::<LittleEndian>()?,
+                };
+
+                if item == v { 
+                    should_write = false;
+                }
             }
         }
 
         if should_write {
             number_of_entries += 1;
+            new_entries += 1;
             file.write_u32::<LittleEndian>(v.low_time)?;
             file.write_u32::<LittleEndian>(v.high_time)?;
             file.write_u32::<LittleEndian>(v.low)?;
@@ -87,8 +94,10 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     let metadata = SystemMetadata {
         per_item: metadata, 
-        total_bytes
+        total_bytes,
+        new_entries,
     };
+    println!("new entries: {}", new_entries);
     let metadata_file = File::create("./data/metadata")?;
     serde_json::to_writer_pretty(metadata_file, &metadata)?;
     Ok(())
