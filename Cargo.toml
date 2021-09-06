@@ -1,0 +1,11 @@
+[package]
+name = "osrs-ge-collect"
+version = "0.1.0"
+authors = ["Ty Overby <ty@pre-alpha.com>"]
+edition = "2018"
+
+[dependencies]
+serde = { version = "1.0.130", features = ["derive"] }
+serde_json = "1.0"
+byteorder = "*"
+ureq = { version = "2.2.0", features = [ "json" ] }
