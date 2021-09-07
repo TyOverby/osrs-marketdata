@@ -68,11 +68,10 @@ fn send_output(stream: &mut TcpStream, file: &mut File) -> Result<(), Box<dyn st
         prev_high = high;
 
         let time = low_time.max(high_time);
-        let delta = u32::saturating_sub(high, low);
         if !is_first {
             writeln!(stream, ",")?;
         }
         is_first = false;
-        write!(stream, "[{}, {}, {}, {}]", time, delta, low, high)?;
+        write!(stream, "[{}, {}, {}]", time, low, high)?;
     }
 }
