@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+
+<head>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/dygraph/2.1.0/dygraph.min.js"></script>
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/dygraph/2.1.0/dygraph.min.css">
+</head>
+
+<body>
+    <div id="graph">
+    </div>
+
+    <script>
+        var opts = {
+            stackedGraph: true,
+            stepPlot: true,
+        }
+
+        function process(data) {
+            let lowest = Infinity;
+            let highest = -Infinity;
+            data.sort(([a], [b]) => a - b);
+            data = data.map(function([time, delta, low, high]) {
+                lowest = Math.min(lowest, low);
+                highest = Math.max(highest, high);
+                return [new Date(time * 1000), delta, low];
+            });
+
+            let padding = (highest - lowest) / 2;
+            lowest = Math.max(lowest - padding, 0);
+            highest = highest + padding;
+            return {
+                data,
+                lowest,
+                highest
+            };
+        }
+
+        function load(element, d) {
+            let { lowest, highest, data } = process(d);
+
+            let opts = {
+                labels: ["x", "delta", "low"],
+                stackedGraph: true,
+                valueRange: [lowest, highest],
+                stepPlot: true,
+                /*
+                showRangeSelector: true,
+                rangeSelectorHeight: 20,
+                rangeSelectorPlotStrokeColor: 'lightgrey',
+                rangeSelectorPlotFillColor: 'lightgrey',
+                rangeSelectorPlotFillGradientColor: 'lightgrey',
+                */
+            };
+
+            graph = new Dygraph(element, data, opts);
+
+            setInterval(function() {
+                fetch("http://159.65.40.110:8080/560")
+                    .then(response => response.json())
+                    .then(process)
+                    .then(function({ lowest, highest, data }) {
+                        graph.updateOptions({
+                            file: data, 
+                            valueRange: [lowest, highest],
+                        });
+                    });
+
+            }, 1000);
+        }
+
+        fetch("http://159.65.40.110:8080/560")
+            .then(response => response.json())
+            .then(x => load(document.querySelector("#graph"), x));
+    </script>
+</body>

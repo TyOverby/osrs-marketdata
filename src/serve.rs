@@ -32,8 +32,10 @@ fn handle_connection(mut stream: TcpStream) -> Result<(), Box<dyn std::error::Er
 
     let mut file = std::fs::File::open(format!("data/{}.bin", id))?;
     write!(&stream, "HTTP/1.1 200 OK\r\nAccess-Control-Allow-Origin: *\r\n\r\n")?;
-    writeln!(&stream, "x, low, high")?;
+    //writeln!(&stream, "x, delta, low, high")?;
+    writeln!(&stream, "[")?;
     let _ = send_output(&mut stream, &mut file);
+    writeln!(&stream, "]")?;
     Ok(())
 }
 
@@ -42,6 +44,7 @@ fn send_output(stream: &mut TcpStream, file: &mut File) -> Result<(), Box<dyn st
     let mut highest_high_time = 0;
     let mut prev_low = 0;
     let mut prev_high= 0;
+    let mut is_first = true;
     loop {
         let low_time= file.read_u32::<LittleEndian>()?;
         let high_time = file.read_u32::<LittleEndian>()?;
@@ -65,6 +68,11 @@ fn send_output(stream: &mut TcpStream, file: &mut File) -> Result<(), Box<dyn st
         prev_high = high;
 
         let time = low_time.max(high_time);
-        writeln!(stream, "{}, {}, {}", time, low, high)?;
+        let delta = u32::saturating_sub(high, low);
+        if !is_first {
+            writeln!(stream, ",")?;
+        }
+        is_first = false;
+        write!(stream, "[{}, {}, {}, {}]", time, delta, low, high)?;
     }
 }
