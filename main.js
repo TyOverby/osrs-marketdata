@@ -19,6 +19,12 @@ function item() {
     }
 }
 
+function set_stats (stats) {
+    for (let key in stats) {
+        document.querySelector("#" + key).textContent = stats[key];
+    }
+}
+
 function register_mapping(mapping) {
     for (let item of mapping) {
         id_to_item[item.id] = item;
@@ -87,7 +93,15 @@ function load(element, d) {
                 if (JSON.stringify(prev) === JSON.stringify(data)) {
                     return;
                 }
+
                 prev = data;
+
+                if (data.length > 0) {
+                    set_stats({
+                        insta_buy: data[data.length - 1][1] + data[data.length - 1][2],
+                        insta_sell: data[data.length - 1][2]
+                    });
+                }
 
                 graph.updateOptions({
                     file: data, 

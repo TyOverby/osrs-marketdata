@@ -7,22 +7,42 @@
 </head>
 
 <body>
-    <div id="graph"> </div>
-    <table>
-        <tr>
-            <td> Item </td>
-            <td> <input id="item" value="air rune"/> </td>
-            <td> <span id="picked"> </span> </td>
-        </tr>
-        <tr>
-            <td> Smoothing </td>
-            <td> <input id="smoothing" type="number" value="1"/> </td>
-            <td> </td>
-        </tr>
-    </table>
-    <div>
-
+    <div id="group">
+        <div id="graph"> </div>
+        <table>
+            <tr>
+                <td>Item</td>
+                <td> <span id="picked"> </span> </td>
+            </tr>
+            <tr>
+                <td> Item </td>
+                <td> <input id="item" value="air rune"/> </td>
+            </tr>
+            <tr>
+                <td> Smoothing </td>
+                <td> <input id="smoothing" type="number" value="1"/> </td>
+            </tr>
+            <tr>
+                <td> Insta Buy </td>
+                <td id="insta_buy"></td> 
+            </tr>
+            <tr>
+                <td> Insta Sell </td>
+                <td id="insta_sell"> </td>
+            </tr>
+        </table>
     </div>
-
     <script src="./main.js"> </script>
+    <style>
+        html,body {
+            margin:0;
+            padding:0;
+            font-family:sans-serif;
+            line-height:2em;
+        }
+        #group {
+            display:flex;
+            align-items: center;
+        }
+    </style>
 </body>
