@@ -66,6 +66,10 @@ function smooth(data) {
     let queue_low = []; 
     let queue_high = []; 
 
+    if (how_much === 0) {
+        return data;
+    }
+
     return data.map(function ([time, low, high]){
         queue_low.push(low);
         queue_high.push(high);
