@@ -117,7 +117,7 @@ function load(element, d) {
 
 fetch(`http://159.65.40.110:8080/${item()}`)
     .then(response => response.json())
-    .then(x => load(document.querySelector("#graph"), x));
+    .then(x => {console.log(x); load(document.querySelector("#graph"), x)});
 
 fetch(`https://prices.runescape.wiki/api/v1/osrs/mapping`)
     .then(response => response.json())

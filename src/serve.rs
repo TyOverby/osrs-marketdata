@@ -1,51 +1,39 @@
 use byteorder::*;
-use std::net::{TcpListener, TcpStream};
-use std::io::{Read, Write};
-use std::fs::{File};
+use std::fs::File;
+use std::fmt::Write;
+use rouille::{Response, router};
 
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let listening_on ="0.0.0.0:8080" ;
-    let listener = TcpListener::bind(listening_on).unwrap();
-    println!("listening on {}", listening_on);
-
-    for stream in listener.incoming() {
-        std::thread::spawn(|| {
-            let stream = stream.unwrap();
-            let _ = handle_connection(stream);
-        });
-    }
-    Ok(())
+    rouille::start_server("0.0.0.0:8080", move |request| {
+        let response = 
+        router!(request,
+            (GET) (/metadata) => {
+                match std::fs::File::open(format!("data/metadata")) {
+                    Ok (file) => Response::from_file("application/json", file),
+                    Err(_) =>  Response::empty_400()
+                }
+            },
+            (GET) (/{id:u32}) => {
+                match std::fs::File::open(format!("data/{}.bin", id)) {
+                    Ok (mut file) => Response::from_data("application/json",response(&mut file)),
+                    Err(_) =>  Response::empty_404()
+                }
+            },
+            _ => Response::empty_404()
+        );
+        response.with_additional_header("Access-Control-Allow-Origin", "*")
+    });
 }
 
-fn handle_connection(mut stream: TcpStream) -> Result<(), Box<dyn std::error::Error>> {
-    let mut buffer = [0; 1024];
-    stream.read(&mut buffer).unwrap();
-    let s  = String::from_utf8_lossy(&buffer);
-    let s = s.as_ref();
-    let parts = s.split_ascii_whitespace().collect::<Vec<_>>();
-    let path = match parts.get(1) {
-        | Some (s) => s.split("/").filter(|s| !s.is_empty()).collect::<Vec<_>>(),
-        | None => vec![]
-    };
-    let id: u32 = path[0].parse()?;
-    println!("request for {}!", id);
-
-    let mut file = std::fs::File::open(format!("data/{}.bin", id))?;
-    write!(&stream, "HTTP/1.1 200 OK\r\nAccess-Control-Allow-Origin: *\r\n\r\n")?;
-    //writeln!(&stream, "x, delta, low, high")?;
-    writeln!(&stream, "[")?;
-    let _ = send_output(&mut stream, &mut file);
-    writeln!(&stream, "]")?;
-    Ok(())
-}
-
-fn send_output(stream: &mut TcpStream, file: &mut File) -> Result<(), Box<dyn std::error::Error>> {
+fn response(file: &mut File) -> String {
+    let mut out = String::new();
+    write!(&mut out,"[").unwrap();
     let mut highest_low_time = 0;
     let mut highest_high_time = 0;
     let mut prev_low = 0;
     let mut prev_high= 0;
     let mut is_first = true;
-    loop {
+    let mut do_read = || -> Result<(), Box<dyn std::error::Error>> {
         let low_time= file.read_u32::<LittleEndian>()?;
         let high_time = file.read_u32::<LittleEndian>()?;
         let mut low = file.read_u32::<LittleEndian>()?;
@@ -59,7 +47,7 @@ fn send_output(stream: &mut TcpStream, file: &mut File) -> Result<(), Box<dyn st
             high = prev_high;
         }
         if low_time < highest_low_time && high_time < highest_high_time {
-            continue;
+            return Ok(());
         }
 
         highest_low_time = low_time;
@@ -69,9 +57,19 @@ fn send_output(stream: &mut TcpStream, file: &mut File) -> Result<(), Box<dyn st
 
         let time = low_time.max(high_time);
         if !is_first {
-            writeln!(stream, ",")?;
+            writeln!(&mut out, ",")?;
         }
         is_first = false;
-        write!(stream, "[{}, {}, {}]", time, low, high)?;
+        write!(&mut out, "[{}, {}, {}]", time, low, high)?;
+        Ok(())
+    };
+
+    loop {
+        match do_read() {
+            Ok(()) => (),
+            Err(_) => break,
+        }
     }
+    write!(&mut out,"]").unwrap();
+    out
 }
