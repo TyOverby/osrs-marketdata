@@ -2,6 +2,8 @@ function smoothing () {
     return Math.max(1, +document.querySelector("#smoothing").value);
 }
 
+
+
 let all_names = [""];
 let id_to_item = {};
 let name_to_item = {};
@@ -33,6 +35,32 @@ function register_mapping(mapping) {
     }
 }
 
+var min_max_smoother_low = (array) => array.reduce((a, b) => Math.min(a,b), Infinity);
+var avg_smoother = (array) => array.reduce((a, b) => a + b, 0) / array.length;
+var min_max_smoother_high = (array) => array.reduce((a, b) => Math.max(a,b), -Infinity);
+
+var cur_smoother_low = min_max_smoother_low
+var cur_smoother_high = min_max_smoother_high
+var which_smoother = true;
+
+document.querySelector("#toggle-smooth").onclick = function () {
+    if (which_smoother) {
+        cur_smoother_low = avg_smoother;
+        cur_smoother_high = avg_smoother;
+    } else {
+        cur_smoother_low = min_max_smoother_low;
+        cur_smoother_high = min_max_smoother_high;
+    }
+    which_smoother = !which_smoother;
+};
+
+function smoother_low(array) {
+    return cur_smoother_low(array);
+}
+function smoother_high(array) {
+    return cur_smoother_high(array);
+}
+
 function smooth(data) {
     var how_much = smoothing();
     let queue_low = []; 
@@ -43,8 +71,8 @@ function smooth(data) {
         queue_high.push(high);
         if (queue_low.length > how_much) {queue_low.shift()}
         if (queue_high.length > how_much) {queue_high.shift()}
-        let low_avg = queue_low.reduce((a, b) => a + b, 0) / queue_low.length;
-        let high_avg = queue_high.reduce((a, b) => a + b, 0) /queue_high.length;
+        let low_avg = smoother_low(queue_low);
+        let high_avg = smoother_high(queue_high);
         return [time, low_avg, high_avg];
     });
 }
@@ -77,7 +105,7 @@ function load(element, d) {
         labels: ["x", "delta", "low"],
         stackedGraph: true,
         valueRange: [lowest, highest],
-        stepPlot: smoothing() === 1,
+        stepPlot: which_smoother || smoothing() === 1,
     };
 
     graph = new Dygraph(element, data, opts);
